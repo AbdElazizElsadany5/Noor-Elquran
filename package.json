@@ -1,7 +1,7 @@
 {
-  "name": "quran-app-react",
+  "name": "quran-karem",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,17 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^0.368.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.1",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.27",
-    "postcss": "^8.5.8",
-    "tailwindcss": "^4.2.1",
-    "vite": "^5.2.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.6.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.4.10"
   }
 }
