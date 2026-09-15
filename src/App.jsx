@@ -318,8 +318,8 @@ export default function App() {
         hasSalawatPlayedRef.current = true;
         setIsSalawatPlaying(true);
       })
-      .catch((err) => {
-        console.warn("Autoplay restricted by browser, waiting for first click gesture:", err);
+      .catch(() => {
+        // Autoplay restricted by browser; wait for first click/touch gesture
         const handleGesture = () => {
           if (!hasSalawatPlayedRef.current) {
             hasSalawatPlayedRef.current = true;
