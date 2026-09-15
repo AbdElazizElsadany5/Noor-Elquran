@@ -41,6 +41,7 @@ const EGYPT_QURAN_RADIO = {
   id: "egypt_cairo_radio",
   name: "إذاعة القرآن الكريم المصرية من القاهرة",
   url: "https://stream.radiojar.com/8s5u5tpdtwzuv",
+  backupUrl: "https://n0a.radiojar.com/8s5u5tpdtwzuv",
   isEgypt: true
 };
 
@@ -611,11 +612,27 @@ export default function App() {
 
     if (audioRef.current) {
       setLoadingAudio(true);
-      audioRef.current.src = radioObj.url;
+      try {
+        audioRef.current.src = radioObj.url;
+        audioRef.current.load();
+      } catch (e) {}
+
       audioRef.current
         .play()
         .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false))
+        .catch((err) => {
+          console.warn("Radio playback primary failed, trying backup...", err);
+          if (radioObj.backupUrl && audioRef.current) {
+            audioRef.current.src = radioObj.backupUrl;
+            audioRef.current.load();
+            audioRef.current
+              .play()
+              .then(() => setIsPlaying(true))
+              .catch(() => setIsPlaying(false));
+          } else {
+            setIsPlaying(false);
+          }
+        })
         .finally(() => setLoadingAudio(false));
     }
   }
