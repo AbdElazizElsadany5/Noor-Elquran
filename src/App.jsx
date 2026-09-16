@@ -45,14 +45,11 @@ const toHttps = (url) => {
 const EGYPT_QURAN_RADIO = {
   id: "egypt_cairo_radio",
   name: "إذاعة القرآن الكريم المصرية من القاهرة",
-  url: "https://n0a.radiojar.com/8s5u5tpdtwzuv",
-  backupUrl: "https://stream.radiojar.com/8s5u5tpdtwzuv",
+  url: "https://stream.zeno.fm/f3wvbbqmdg8uv",
+  backupUrl: "https://stream.zeno.fm/0r0xa792kwzuv",
   backupUrls: [
-    "https://n0a.radiojar.com/8s5u5tpdtwzuv",
-    "https://stream.radiojar.com/8s5u5tpdtwzuv",
-    "https://n0c.radiojar.com/8s5u5tpdtwzuv",
-    "https://n12.radiojar.com/8s5u5tpdtwzuv",
-    "https://stream.zeno.fm/f3wvbbqmdg8uv"
+    "https://stream.zeno.fm/f3wvbbqmdg8uv",
+    "https://stream.zeno.fm/0r0xa792kwzuv"
   ],
   isEgypt: true
 };
