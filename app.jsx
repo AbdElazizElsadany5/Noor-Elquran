@@ -93,11 +93,13 @@ const PALETTES = {
 const EGYPT_QURAN_RADIO = {
   id: "egypt_cairo_radio",
   name: "إذاعة القرآن الكريم المصرية من القاهرة",
-  url: "https://stream.zeno.fm/f3wvbbqmdg8uv",
-  backupUrl: "https://stream.zeno.fm/0r0xa792kwzuv",
+  url: "/api/cairo-radio",
+  backupUrl: "https://n0a.radiojar.com/8s5u5tpdtwzuv",
   backupUrls: [
-    "https://stream.zeno.fm/f3wvbbqmdg8uv",
-    "https://stream.zeno.fm/0r0xa792kwzuv"
+    "/api/cairo-radio",
+    "https://n0a.radiojar.com/8s5u5tpdtwzuv",
+    "https://n0c.radiojar.com/8s5u5tpdtwzuv",
+    "https://n12.radiojar.com/8s5u5tpdtwzuv"
   ],
   isEgypt: true
 };
