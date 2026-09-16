@@ -1,0 +1,7 @@
+# Ignore local native build cache files from EAS tarball
+.gradle/
+android/.gradle/
+ios/build/
+android/build/
+android/app/build/
+node_modules/

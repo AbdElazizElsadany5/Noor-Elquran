@@ -37,11 +37,23 @@ const THEME = {
     "bg-emerald-800 hover:bg-emerald-900 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950"
 };
 
+const toHttps = (url) => {
+  if (!url || typeof url !== "string") return url;
+  return url.replace(/^http:\/\//i, "https://");
+};
+
 const EGYPT_QURAN_RADIO = {
   id: "egypt_cairo_radio",
   name: "إذاعة القرآن الكريم المصرية من القاهرة",
-  url: "https://stream.radiojar.com/8s5u5tpdtwzuv",
-  backupUrl: "https://n0a.radiojar.com/8s5u5tpdtwzuv",
+  url: "https://n0a.radiojar.com/8s5u5tpdtwzuv",
+  backupUrl: "https://stream.radiojar.com/8s5u5tpdtwzuv",
+  backupUrls: [
+    "https://n0a.radiojar.com/8s5u5tpdtwzuv",
+    "https://stream.radiojar.com/8s5u5tpdtwzuv",
+    "https://n0c.radiojar.com/8s5u5tpdtwzuv",
+    "https://n12.radiojar.com/8s5u5tpdtwzuv",
+    "https://stream.zeno.fm/f3wvbbqmdg8uv"
+  ],
   isEgypt: true
 };
 
@@ -270,6 +282,16 @@ export default function App() {
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
 
+  useEffect(() => {
+    const handleUnhandledRejection = (e) => {
+      if (e.reason && typeof e.reason === "object" && e.reason.message && e.reason.message.includes("message channel closed")) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  }, []);
+
   function handleInstallPWA() {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -278,7 +300,7 @@ export default function App() {
           console.log("PWA installed by user");
         }
         setDeferredPrompt(null);
-      });
+      }).catch(() => {});
     }
   }
 
@@ -436,7 +458,13 @@ export default function App() {
     fetch("https://www.mp3quran.net/api/v3/reciters?language=ar")
       .then((res) => res.json())
       .then((data) => {
-        const reciters = data.reciters || [];
+        const reciters = (data.reciters || []).map((r) => ({
+          ...r,
+          moshaf: (r.moshaf || []).map((m) => ({
+            ...m,
+            server: toHttps(m.server)
+          }))
+        }));
         setAllSheikhs(reciters);
         if (reciters.length > 0) {
           setSelectedSheikhId(String(reciters[0].id));
@@ -447,7 +475,11 @@ export default function App() {
     fetch("https://www.mp3quran.net/api/v3/radios?language=ar")
       .then((res) => res.json())
       .then((data) => {
-        const radiosList = data.radios || [];
+        const radiosList = (data.radios || []).map((r) => ({
+          ...r,
+          url: toHttps(r.url),
+          backupUrl: r.backupUrl ? toHttps(r.backupUrl) : undefined
+        }));
         setAllRadios([EGYPT_QURAN_RADIO, ...radiosList]);
       })
       .catch((err) => {
@@ -573,7 +605,7 @@ export default function App() {
         (m) => m.surah_list && m.surah_list.split(",").includes(surahNumStr)
       ) || sheikh.moshaf[0];
 
-    const server = chosenMoshaf.server;
+    const server = toHttps(chosenMoshaf.server);
     const surahPadded = String(selectedSurahNum).padStart(3, "0");
     const audioSrc = `${server}${surahPadded}.mp3`;
     const surahObj = allSurahs.find((s) => String(s.number) === String(selectedSurahNum));
@@ -610,31 +642,45 @@ export default function App() {
     setSelectedRadioUrl(radioObj.url);
     setCurrentAudioTitle(radioObj.name.includes("إذاعة") ? radioObj.name : `إذاعة القارئ ${radioObj.name}`);
 
-    if (audioRef.current) {
-      setLoadingAudio(true);
-      try {
-        audioRef.current.src = radioObj.url;
-        audioRef.current.load();
-      } catch (e) {}
+    if (!audioRef.current) return;
+    setLoadingAudio(true);
 
+    const urlsToTry = [
+      toHttps(radioObj.url),
+      radioObj.backupUrl ? toHttps(radioObj.backupUrl) : null,
+      ...(radioObj.backupUrls ? radioObj.backupUrls.map(toHttps) : [])
+    ].filter(Boolean);
+
+    const uniqueUrls = [...new Set(urlsToTry)];
+    let attemptIndex = 0;
+
+    const tryPlayNext = () => {
+      if (attemptIndex >= uniqueUrls.length) {
+        console.warn("All radio playback sources failed for:", radioObj.name);
+        setIsPlaying(false);
+        setLoadingAudio(false);
+        return;
+      }
+
+      const currentUrl = uniqueUrls[attemptIndex];
+      attemptIndex++;
+
+      if (!audioRef.current) return;
+      audioRef.current.src = currentUrl;
+      audioRef.current.load();
       audioRef.current
         .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => {
-          console.warn("Radio playback primary failed, trying backup...", err);
-          if (radioObj.backupUrl && audioRef.current) {
-            audioRef.current.src = radioObj.backupUrl;
-            audioRef.current.load();
-            audioRef.current
-              .play()
-              .then(() => setIsPlaying(true))
-              .catch(() => setIsPlaying(false));
-          } else {
-            setIsPlaying(false);
-          }
+        .then(() => {
+          setIsPlaying(true);
+          setLoadingAudio(false);
         })
-        .finally(() => setLoadingAudio(false));
-    }
+        .catch((err) => {
+          console.warn(`Radio playback primary failed for source (${currentUrl}), trying backup...`, err);
+          tryPlayNext();
+        });
+    };
+
+    tryPlayNext();
   }
 
   function togglePlayPause() {
@@ -758,32 +804,47 @@ export default function App() {
             </div>
           </div>
 
-          {/* Dark / Light Mode Switch Buttons */}
-          <div className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 p-1 backdrop-blur">
-            <button
-              type="button"
-              onClick={() => toggleTheme(false)}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
-                !isDark ? "bg-white text-slate-900 shadow-md scale-105" : "text-white/90 hover:bg-white/20"
-              }`}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              الوضع النهاري
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleTheme(true)}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
-                isDark ? "bg-slate-900 text-white shadow-md scale-105" : "text-white/90 hover:bg-white/20"
-              }`}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-              الوضع الليلي
-            </button>
+          {/* Theme & PWA Install Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {deferredPrompt && (
+              <button
+                type="button"
+                onClick={handleInstallPWA}
+                className="flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-500 px-4 py-1.5 text-xs font-bold text-slate-950 shadow-lg hover:bg-amber-400 transition cursor-pointer animate-pulse"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                تثبيت التطبيق
+              </button>
+            )}
+
+            <div className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 p-1 backdrop-blur">
+              <button
+                type="button"
+                onClick={() => toggleTheme(false)}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  !isDark ? "bg-white text-slate-900 shadow-md scale-105" : "text-white/90 hover:bg-white/20"
+                }`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M6.343 16.343" />
+                </svg>
+                الوضع النهاري
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleTheme(true)}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  isDark ? "bg-slate-900 text-white shadow-md scale-105" : "text-white/90 hover:bg-white/20"
+                }`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                الوضع الليلي
+              </button>
+            </div>
           </div>
         </header>
 
